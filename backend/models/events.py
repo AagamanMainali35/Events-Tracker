@@ -15,7 +15,6 @@ def generate_uuid_str() -> str:
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
-
 class Event(Base):
     __tablename__ = "events"
 
@@ -54,6 +53,6 @@ class Event(Base):
     __table_args__ = (
         Index("idx_events_event_type_timestamp", "event_type", "timestamp"),
     )
-
+    
     def __repr__(self) -> str:
         return f"<Event(id={self.id}, user_id={self.user_id}, event_type={self.event_type}, timestamp={self.timestamp})>"
