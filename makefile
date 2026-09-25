@@ -2,31 +2,35 @@ ROOT_DIR := /home/momoskar/Documents/Interview-project
 BACKEND_DIR := $(ROOT_DIR)/backend
 FRONTEND_DIR := $(ROOT_DIR)/frontend
 
-PYTHON = uv run python
-MANAGE = $(PYTHON) $(BACKEND_DIR)/manage.py
-NPM = npm
+UV := uv run
+NPM := npm
 
+.PHONY: runb runf makemigrations migrate downgrade test lint
+
+# Start FastAPI backend
 runb:
-	cd $(BACKEND_DIR) && $(PYTHON) manage.py runserver
+	cd $(BACKEND_DIR) && $(UV) uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
+# Start Frontend
 runf:
 	cd $(FRONTEND_DIR) && $(NPM) run dev
 
-
+# Generate Alembic migration (Usage: make makemigrations m="migration message")
 makemigrations:
-	 $(MANAGE) makemigrations
+	cd $(BACKEND_DIR) && $(UV) alembic revision --autogenerate -m "$${m:-auto_migration}"
 
+# Apply Alembic migrations
 migrate:
-	 $(MANAGE) migrate
+	cd $(BACKEND_DIR) && $(UV) alembic upgrade head
 
-createsuperuser:
-	 $(MANAGE) createsuperuser
+# Rollback one migration
+downgrade:
+	cd $(BACKEND_DIR) && $(UV) alembic downgrade -1
 
-shell:
-	 $(MANAGE) shell
-
+# Run tests
 test:
-	 $(MANAGE) test
+	cd $(BACKEND_DIR) && $(UV) pytest
 
-check:
-	 $(MANAGE) check
+# Lint and format check
+lint:
+	cd $(BACKEND_DIR) && $(UV) ruff check .
