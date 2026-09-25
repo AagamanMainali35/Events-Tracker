@@ -33,8 +33,14 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
 
     if existing_user:
         if existing_user.email == payload.email:
-            raise error_response(message="Email is already registered", status_code=400)
-        raise error_response(message="Username is already taken", status_code=400)
+            raise error_response(
+                message="Email is already registered",
+                status_code=status.HTTP_409_CONFLICT,
+            )
+        raise error_response(
+            message="Username is already taken",
+            status_code=status.HTTP_409_CONFLICT,
+        )
 
     # Create new user
     new_user = User(
