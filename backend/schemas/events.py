@@ -4,9 +4,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class EventBase(BaseModel):
-    user_id: str = Field(..., min_length=1, max_length=255, description="Unique identifier for the user")
-    event_type: str = Field(..., min_length=1, max_length=100, description="Type/category of the event (e.g. click, login, page_view)")
-    payload: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata or context payload")
+    user_id: str = Field(min_length=1, max_length=255, description="Unique identifier for the user")
+    event_type: str = Field(min_length=1, max_length=100, description="Type/category of the event (e.g. click, login, page_view)")
+    payload: Dict[str, Any] = Field(description="Arbitrary metadata or context payload")
     timestamp: Optional[datetime] = Field(default=None, description="Event timestamp (UTC). Defaults to current time if omitted")
 
 

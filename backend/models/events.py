@@ -1,20 +1,19 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict
-from sqlalchemy import DateTime, Index, String
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
-from sqlalchemy.types import JSON
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
+
 
 def generate_uuid_str() -> str:
     return str(uuid.uuid4())
 
+
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
-
 
 
 class Event(Base):
@@ -28,6 +27,7 @@ class Event(Base):
     )
     user_id: Mapped[str] = mapped_column(
         String,
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -47,6 +47,9 @@ class Event(Base):
         default=utcnow,
         index=True,
     )
+
+    # Relationships
+    user: Mapped["User"] = relationship("User", back_populates="events")
 
     __table_args__ = (
         Index("idx_events_event_type_timestamp", "event_type", "timestamp"),
