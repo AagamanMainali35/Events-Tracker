@@ -2,19 +2,26 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import jwt
-from pwdlib import PasswordHash
-from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from decouple import config
+from fastapi import Depends, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import jwt
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
+from pwdlib import PasswordHash
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-SECRET_KEY = config("SECRET_KEY") 
+from database import get_db
+from models.users import User
+from response import error_response
+
+SECRET_KEY = config("SECRET_KEY")
 ALGORITHM = config("ALGORITHM", default="HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = config("ACCESS_TOKEN_EXPIRE_MINUTES", default=30, cast=int)
 REFRESH_TOKEN_EXPIRE_DAYS = config("REFRESH_TOKEN_EXPIRE_DAYS", default=7, cast=int)
 
-
-
 _password_hash = PasswordHash.recommended()
+http_bearer = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -25,6 +32,7 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Check a plaintext password against a stored hash."""
     return _password_hash.verify(plain_password, hashed_password)
+
 
 def create_access_token(
     subject: str,
@@ -37,7 +45,7 @@ def create_access_token(
 
     payload: dict[str, Any] = {
         "sub": str(subject),
-        "iat": now, 
+        "iat": now,
         "exp": now + timedelta(minutes=minutes),
         "type": "access",
     }
@@ -77,3 +85,63 @@ def decode_access_token(token: str) -> dict[str, Any]:
 
 def decode_refresh_token(token: str) -> dict[str, Any]:
     return decode_token(token, expected_type="refresh")
+
+
+async def get_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(http_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """FastAPI dependency to extract token, verify user, and load User object from DB."""
+    # 1. Check if user was already set by middleware
+    user_id = getattr(request.state, "user", None)
+
+    # 2. Or decode from Authorization header
+    if not user_id:
+        if not credentials or not credentials.credentials:
+            raise error_response(
+                message="Authentication Token missing",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        try:
+            payload = decode_access_token(credentials.credentials)
+            user_id = payload.get("sub")
+        except ExpiredSignatureError:
+            raise error_response(
+                message="Token has expired",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except InvalidTokenError:
+            raise error_response(
+                message="Invalid token",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    if not user_id:
+        raise error_response(
+            message="Invalid token payload",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Load User from DB
+    stmt = select(User).where(User.id == user_id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise error_response(
+            message="User not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not user.is_active:
+        raise error_response(
+            message="User account is inactive",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+    return user
