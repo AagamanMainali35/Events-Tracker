@@ -1,0 +1,51 @@
+# .pre-commit-config.yaml
+# Pre-commit hooks configuration for FastAPI project
+default_language_version:
+    python: "python3.11.8"
+
+repos:
+  # Basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: debug-statements
+      - id: detect-private-key
+      - id: check-docstring-first
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+
+  # Import sorting (compatible with black)
+  - repo: https://github.com/PyCQA/isort
+    rev: 6.0.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black", "--filter-files"]
+        language_version: python3.11.8
+
+  # Code formatting
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        language_version: python3.11.8
+        args: ["--line-length=145"]
+
+  # Linting with flake8
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.2
+    hooks:
+      - id: flake8
+        additional_dependencies: [
+          "flake8-docstrings",
+          "flake8-bugbear",
+        ]
+        args: [
+          "--max-line-length=145",
+          "--ignore=D100,D101,D102,D103,D104,D105,D106,D107,E501,W503,E722,E402,F401,E741,D401,E203"
+        ]
+        language_version: python3.11.8
